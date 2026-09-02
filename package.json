@@ -1,0 +1,10 @@
+{
+  "name": "ultimate-crm-task-master",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Universal CRM task manager userscript, backed by a personal Notion database.",
+  "scripts": {
+    "build": "node build/build.js"
+  },
+  "license": "UNLICENSED"
+}
