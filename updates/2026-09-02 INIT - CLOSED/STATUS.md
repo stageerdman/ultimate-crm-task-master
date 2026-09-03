@@ -1,15 +1,15 @@
 # INIT — Status
 
-Last updated: 2026-09-03 (owner said "build it all now, all phases go until you need my intervention" —
-Steps 1-4 fully built: `App.core` (namespace/log/storage/httpClient/notionClient/settings/timezone), the
-build system, the full site-mapping engine (`src/mapping/**`), and the entire task-management UX ported
-into `src/ui/**` + `src/tasks/**`. Clean full build, `dist/script.user.js` ~315KB. Pure-logic modules and
-the live Notion client code both verified working via Node scratch scripts — see Step 5 below for what
-still needs a real browser + the owner's GHL login.)
+Last updated: 2026-09-03 — **owner confirmed the live flow works and closed this update.** After the full
+build (Steps 1-4), owner testing in real Tampermonkey/GHL surfaced and got fixed: real workflow config +
+seeded views restored (owner's actual GHL settings, not placeholders — see "Post-build live-testing
+fixes" below), a settings-load bug where a stale save could never pick up new code defaults again (fixed,
+then reverted at owner's request in favor of a manual paste + a "Reset to defaults" button), a mapping-
+banner button CSS bug, and two real filter/sort-bar bugs (panel auto-closing on every edit; the Add-filter
+popup clipped inside its own scroll container). All fixed, verified, owner confirmed working. **This
+update is CLOSED** — see the renamed folder.
 
-Current step: **Step 5/6 — Test & wrap up.** Everything buildable without a live GHL session is done and
-verified; the remaining work is the owner testing the real flow in Tampermonkey and reporting back (see
-"Needs the owner" below), then closing this update once confirmed.
+Current step: none — closed.
 
 ## Step 0 research summary (2026-09-03)
 
@@ -136,26 +136,52 @@ Full file-by-file detail is in `ROADMAP.md`'s Steps 1-4 (now checked off) — th
   relation-filtered task query, `decorateTask` round-trip — all pass, then cleaned up (workspace confirmed
   empty again).
 
-**Needs the owner** (can't be tested without a real GHL login + real browser):
-1. Install `dist/script.user.js` into Tampermonkey (see updated README "Install" section) and fill in
-   Settings (Notion API key, database IDs, timezone).
-2. On a real GHL contact page, trigger the "Map this site" flow from the compact bar and click through
-   name/phone/email — confirm the picker highlights sensibly and the mapping saves.
-3. Confirm quick-add creates a task against the right Notion contact, and that revisiting the same
-   contact (or a different GHL page) re-matches it correctly.
-4. Open the full-screen panel — confirm the default "All tasks" view, tab add/rename/delete, Timeline
-   chart, and Settings form all render and behave as expected.
-5. Report back anything broken, confusing, or missing rather than assuming it works — per `CLAUDE.md` §5.
+## Post-build live-testing fixes (2026-09-03, owner testing in real Tampermonkey/Zen + GHL)
 
-## Open questions for the owner
+- **Mapping banner button CSS bug**: `.crmtm-cct-map-btn` (Map/Remap/Create) inherited `.crmtm-btn`'s
+  fixed 26×26 icon-square instead of sizing to its text — fixed (`width: auto; height: auto`), and
+  shortened all the banner button labels/copy to match the app's terse "Add"-style convention ("Map this
+  site" → "Map", "No matching Notion contact found for X" → "X not found", etc.).
+- **Real workflow config + seeded views were placeholders**: `settings.js`'s `DEFAULTS.workflow` shipped
+  as `{stages:{}}` and `viewsStore.js` seeded one generic "All tasks" view — both wrong, the owner's real
+  daily-driver config exists in `GHL-tasks-userscript`. Ported verbatim: the 10-stage catalog (NA/A/M/NS/
+  MD/WP/SPLÁTKA/REFUND/OPP/ARCHIV) and the 6 real seeded views (First Reach-Out/Second Priority/NA/
+  Archive/Recents/Completed), translating the predecessor's boolean `completed` checkbox conditions to
+  this project's native 3-valued `Status` select field. Bucket default times also restored to the owner's
+  real values (`02:10`/`02:11`/`02:12`/`02:13` morning/afternoon/evening/all-day — confirmed by the owner
+  these are real intended times from the source project, not placeholders, despite reading that way).
+- **Settings-load bug, found and then explicitly reverted**: once the Settings panel's Save button ran
+  once (even with an old/wrong value showing), that value was permanently written to Tampermonkey storage
+  and every future code-level default update in `DEFAULTS` was silently ignored by `load()`'s plain
+  `Object.assign` merge — no rebuild could ever reach an install that had already saved. Built an
+  auto-recovery special-case in `load()` for this, but the **owner explicitly asked to revert it** ("the
+  logic was correct... just give me the JSON and times to paste in") — reverted to the plain merge,
+  keeping only the additive `App.core.settings.DEFAULTS` export + a "Reset to defaults" button in the
+  Settings panel as the deliberate, explicit way back. **Lesson for future updates**: prefer an explicit
+  manual reset/paste path over a silent "smart" override, even when the override is well-intentioned —
+  matches this project's broader non-optimistic, no-silent-magic design principle.
+- **Filter/sort bar, two real bugs**: (1) `fullScreen.js` re-syncs the filter/sort bar to the active view
+  on every render pass, including the one the bar's own `onChange` callback triggers right after a commit
+  — `setView()` was unconditionally resetting `filterPanel.hidden`/`sortPanel.hidden = true` on every
+  call, so editing anything (add filter, add group, toggle AND/OR) immediately closed the panel that was
+  just open. Fixed: `setView()` now only resets panel state when the view actually changes. (2) The "Add
+  filter"/condition-submenu popups were nested inside `.crmtm-fsb-panel`, itself `overflow-y: auto` — a
+  classic "dropdown clipped by its own scrollable ancestor" CSS bug, needing a scroll to see content that
+  should float on top. Fixed: `openPopover()` now portals the popover into the shadow root itself with
+  `position: fixed`, positioned from the anchor's live `getBoundingClientRect()` and clamped to the
+  viewport — same technique would fix the same class of bug elsewhere if it recurs (e.g. inside
+  `taskEditPanel`'s scrollable panel, not reported/not touched this round).
+
+Owner confirmed live: "good in that case we're finished close the update."
+
+## Open questions — resolved or moot at close
 
 - ~~Does the day/call/total call-cadence/workflow-step concept from `GHL-tasks-userscript` generalize to
-  "any CRM"?~~ **Answered 2026-09-03: yes, keep it.** `workflowEngine.js`/`stepPicker.js` port,
-  `Stage`/`Day`/`Call`/`Total`/`Modifier` are now live Tasks properties.
-- Any existing Notion workspace/database the Contacts and Tasks databases should live under, or create new
-  top-level ones? — Likely moot now that the owner already built and shared the two live databases directly;
-  drop this question unless something surfaces.
-- Confirm: is a same-tab floating panel enough, or does the owner want it to persist/restore state across
-  tab reloads on the same CRM page?
-- ~~Which 2-3 real CRM sites (besides GHL) should mapping be validated against first?~~ **Answered
-  2026-09-03: GHL only, for now.** Revisit once the picker exists if more sites are needed.
+  "any CRM"?~~ **Answered 2026-09-03: yes, keep it.** Live in Tasks as Stage/Day/Call/Total/Modifier.
+- ~~Any existing Notion workspace/database the Contacts and Tasks databases should live under?~~ Moot —
+  owner built and shared the two live databases directly.
+- ~~Is a same-tab floating panel enough, or persist/restore state across tab reloads?~~ Never surfaced as
+  an issue during live testing — leaving as same-tab-only unless raised in a future update.
+- ~~Which 2-3 real CRM sites (besides GHL) should mapping be validated against?~~ **Answered: GHL only.**
+  Revisit in a future update if more CRMs are needed — the mapping engine itself is already
+  domain/path-generic, no GHL-specific code in `src/mapping/**`.

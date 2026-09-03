@@ -164,7 +164,7 @@ state, stay editable).
       built as named methods on top. Full build: `dist/script.user.js`, ~315KB, clean (dependency check +
       duplicate-export check + `vm.Script` syntax validation all pass).
 
-## Step 5 — Test ✅ partially done 2026-09-03
+## Step 5 — Test ✅ done 2026-09-03
 
 - [x] Pure-logic modules (timezone round-trip, `workflowEngine` flatten/next/nextOrSame, `timeBuckets`,
       `taskViews` filter/sort incl. OR-groups and empty-value-sorts-last) — verified via a Node `vm` harness
@@ -173,15 +173,14 @@ state, stay editable).
       actual shipped code (`GM_xmlhttpRequest` stubbed with Node's `https`, not curl this time):
       createContact/createTask/decorateTask/findContact(compound-or)/listTasksForContact/updateTask/
       deleteTask all confirmed working, then cleaned up (workspace verified empty again after).
-- [ ] **Not done — needs the owner**: anything requiring a real GHL login and a real browser (the mapping/
-      click-to-map picker against real GHL markup, the compact-bar banner flow, quick-add end-to-end, the
-      full-screen panel's tabs/timeline/settings UI rendering correctly). `claude-in-chrome` browser
-      automation wasn't used for this, since it would need the owner's real GHL session — see STATUS.md's
-      open item for what to test and report back.
+- [x] **Owner-tested live** in real Tampermonkey (Zen browser) against real GHL: mapping/click-to-map
+      picker, the compact-bar banner flow, quick-add, and the full-screen panel's tabs/filter/sort/
+      timeline/settings UI. Surfaced several real bugs (see STATUS.md "Post-build live-testing fixes") —
+      all fixed and re-confirmed working.
 
-## Step 6 — Package & wrap up
+## Step 6 — Package & wrap up ✅ done 2026-09-03
 
 - [x] README install instructions (Tampermonkey install steps, first-run Settings setup).
-- [ ] Confirm the full flow live with the owner: map GHL, create a task, see it show up correctly, confirm
-      it survives a second visit to the same contact.
-- [ ] Close this update (`- OPEN` → `- CLOSED`) once the owner confirms it's working as the daily driver.
+- [x] Confirmed the full flow live with the owner: mapping, quick-add, filter/sort views, workflow config
+      and seeded views all working as the real daily driver.
+- [x] Closed this update (`- OPEN` → `- CLOSED`).
