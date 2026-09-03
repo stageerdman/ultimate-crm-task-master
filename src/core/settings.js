@@ -71,12 +71,10 @@ App.core.settings = (function () {
     tasksDatabaseId: '',
     timezone: 'UTC',
     workflow: DEFAULT_WORKFLOW,
-    // Default "HH:mm" for each time-of-day bucket the date/time pickers offer as input shortcuts —
-    // sugar over a real stored datetime, never an encoded sentinel (ROADMAP.md Step 1). Unlike the
-    // predecessor project (which used placeholder sentinel values here, e.g. '02:10', never meant as
-    // literal clock times), these must be real times since Notion stores a real due datetime — confirm/
-    // adjust in the Settings panel to match when mornings/afternoons/evenings actually mean for you.
-    reservedTimes: { morning: '09:00', afternoon: '13:00', evening: '18:00', allday: '09:00' },
+    // Default "HH:mm" for each time-of-day bucket the date/time pickers offer as input shortcuts — the
+    // owner's real values, ported verbatim from GHL-tasks-userscript's settings.js (confirmed by the
+    // owner 2026-09-03 to be real intended times, not placeholders).
+    reservedTimes: { morning: '02:10', afternoon: '02:11', evening: '02:12', allday: '02:13' },
   };
 
   function load() {
