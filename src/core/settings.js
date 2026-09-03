@@ -78,7 +78,16 @@ App.core.settings = (function () {
   };
 
   function load() {
-    return Object.assign({}, DEFAULTS, App.core.storage.get(STORAGE_KEY, {}));
+    var merged = Object.assign({}, DEFAULTS, App.core.storage.get(STORAGE_KEY, {}));
+    // A workflow with zero stages is never a meaningful end state for this app (every picker that reads
+    // it just goes blank) — most likely it's a stale save from before real stages existed here, not a
+    // deliberate choice. Recover automatically rather than silently staying broken across every future
+    // code update, the way a raw Object.assign would (a stored value always wins over a new DEFAULTS,
+    // even an empty one saved by accident).
+    if (!merged.workflow || !merged.workflow.stages || Object.keys(merged.workflow.stages).length === 0) {
+      merged.workflow = DEFAULTS.workflow;
+    }
+    return merged;
   }
 
   function isConfigured(settings) {
@@ -110,6 +119,7 @@ App.core.settings = (function () {
   }
 
   return {
+    DEFAULTS: DEFAULTS,
     load: load,
     save: save,
     isConfigured: isConfigured,

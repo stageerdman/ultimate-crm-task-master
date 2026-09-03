@@ -136,9 +136,28 @@ App.ui.settingsPanel = (function () {
     saveBtn.textContent = 'Save';
     saveBtn.addEventListener('click', handleSave);
 
+    // Repopulates the bucket-time/workflow fields (only — never the API key/database IDs) from the
+    // shipped defaults, without saving. Once a save persists a value, it always wins over any future
+    // code-level default (by design — a Settings panel that silently discards your own edits would be
+    // worse), so this is the deliberate way back if a save ever locks in something wrong.
+    var resetBtn = document.createElement('button');
+    resetBtn.type = 'button';
+    resetBtn.className = 'crmtm-btn crmtm-settings-reset';
+    resetBtn.textContent = 'Reset to defaults';
+    resetBtn.addEventListener('click', function () {
+      var defaults = App.core.settings.DEFAULTS;
+      reservedInputs.morning.value = defaults.reservedTimes.morning;
+      reservedInputs.afternoon.value = defaults.reservedTimes.afternoon;
+      reservedInputs.evening.value = defaults.reservedTimes.evening;
+      reservedInputs.allday.value = defaults.reservedTimes.allday;
+      workflowTextarea.value = JSON.stringify(defaults.workflow, null, 2);
+      showStatus('Defaults loaded — click Save to keep them.');
+    });
+
     var actions = document.createElement('div');
     actions.className = 'crmtm-settings-actions';
     actions.appendChild(saveBtn);
+    actions.appendChild(resetBtn);
     box.appendChild(actions);
     box.appendChild(statusEl);
     box.appendChild(errorEl);
