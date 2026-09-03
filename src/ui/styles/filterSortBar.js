@@ -39,9 +39,12 @@ App.ui.styles.filterSortBar = [
   '.crmtm-fsb-panel[hidden] { display: none; }',
   '',
   '.crmtm-fsb-picker-anchor { position: relative; display: inline-block; }',
+  // position/top/left are set inline by openPopover() (fixed, from the anchor's live bounding rect) so
+  // these can never be clipped by .crmtm-fsb-panel's own overflow-y: auto — only the visual chrome
+  // lives here.
   '.crmtm-fsb-picker, .crmtm-fsb-condmenu {',
-  '  position: absolute; top: calc(100% + 4px); left: 0; background: var(--crmtm-bg-raised);',
-  '  border-radius: var(--crmtm-radius); box-shadow: var(--crmtm-shadow); z-index: 40;',
+  '  background: var(--crmtm-bg-raised); border-radius: var(--crmtm-radius); box-shadow: var(--crmtm-shadow);',
+  '  z-index: 2147483647;',
   '}',
   '.crmtm-fsb-picker { width: 260px; padding: 6px; }',
   '.crmtm-fsb-condmenu { width: 176px; padding: 4px; }',

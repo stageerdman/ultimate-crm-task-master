@@ -124,14 +124,36 @@ App.ui.filterSortBar = (function () {
       }
     }
 
-    // --- generic outside-click/Escape-closable popover, anchored inside `anchorWrap` (must be
-    // position:relative) — reused for the property picker and the condition submenu (App.ui.datePicker
-    // uses the identical pattern for its own panel, see src/payload/ui/datePicker.js). ---
+    // --- generic outside-click/Escape-closable popover, positioned from `anchorWrap`'s live bounding
+    // rect — reused for the property picker and the condition submenu. Appended to the nearest shadow
+    // root (or document.body, outside a shadow tree) with `position: fixed` rather than nested inside
+    // `anchorWrap` with `position: absolute`: the property picker/condition submenu open from anchors
+    // that live inside .crmtm-fsb-panel, which is itself `overflow-y: auto` (it has to be, condition
+    // lists can get long) — an absolutely-positioned child that visually extends past a scrollable
+    // ancestor's bounds gets clipped by that ancestor's overflow, forcing the user to scroll the outer
+    // panel to see a dropdown that's supposed to float on top of it. `position: fixed` positioned from
+    // getBoundingClientRect() escapes that entirely, the same way a browser-native <select> dropdown
+    // would. ---
     function openPopover(anchorWrap, className, build) {
       closeAnyPopover();
       var pop = el('div', className);
       build(pop, function () { close(); });
-      anchorWrap.appendChild(pop);
+
+      var root = anchorWrap.getRootNode();
+      var portalHost = root && root.host ? root : document.body;
+      pop.style.position = 'fixed';
+      pop.style.margin = '0';
+      portalHost.appendChild(pop);
+
+      var rect = anchorWrap.getBoundingClientRect();
+      var popRect = pop.getBoundingClientRect();
+      var left = Math.min(rect.left, window.innerWidth - popRect.width - 8);
+      var top = rect.bottom + 4;
+      if (top + popRect.height > window.innerHeight - 8) {
+        top = Math.max(8, rect.top - popRect.height - 4);
+      }
+      pop.style.left = Math.max(8, left) + 'px';
+      pop.style.top = top + 'px';
 
       function onDocMouseDown(e) {
         var path = e.composedPath ? e.composedPath() : [];
@@ -635,8 +657,19 @@ App.ui.filterSortBar = (function () {
     document.addEventListener('mousedown', onDocMouseDownClosePanels, true);
     document.addEventListener('keydown', onDocKeyDownClosePanels, true);
 
+    // fullScreen.js calls setView(view) on every render pass, including the ones its own onChange
+    // triggers right after a filter/sort edit commits (commitFilter/commitSort -> onChange ->
+    // renderContent -> setView) — every single edit was re-entering this function and unconditionally
+    // force-closing whatever panel the user had just been editing. Only reset panel visibility (and the
+    // in-progress draft) when the view actually changed; re-affirming the same view mid-edit is a no-op
+    // besides refreshing the toolbar button labels.
     function setView(view) {
+      var isSameView = currentView && currentView.id === view.id;
       currentView = view;
+      if (isSameView) {
+        renderToolbarState();
+        return;
+      }
       draftFilter = normalizeGroup(view.filter);
       draftSort = (view.sort || []).slice();
       filterPanel.hidden = true;
