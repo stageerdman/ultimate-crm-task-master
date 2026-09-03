@@ -40,7 +40,7 @@ App.ui.styles.taskEditPanel = [
   '}',
   '.crmtm-tep-completed { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }',
   '.crmtm-tep-title { font-size: 11px; color: var(--crmtm-text-muted); }',
-  '.crmtm-tep-error { color: var(--crmtm-danger); font-size: 12px; }',
+  '.crmtm-tep-error { color: var(--crmtm-danger); font-size: 11px; }',
   '',
   '.crmtm-tep-actions { display: flex; align-items: center; gap: 8px; margin-top: auto; padding-top: 8px; }',
   '.crmtm-tep-save { width: auto; padding: 0 14px; background: var(--crmtm-accent); color: #fff; }',

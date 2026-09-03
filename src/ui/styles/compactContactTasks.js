@@ -32,5 +32,7 @@ App.ui.styles.compactContactTasks = [
   '  display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--crmtm-text-muted);',
   '  padding: 2px 0; flex-wrap: wrap;',
   '}',
-  '.crmtm-cct-map-btn { font-size: 11px; padding: 2px 8px; }',
+  // .crmtm-btn defaults to a fixed 26x26 icon-button square (see styles/shell.js) — every text button
+  // in this app overrides width/height to auto, same as .crmtm-settings-save/.crmtm-tep-save do.
+  '.crmtm-cct-map-btn { width: auto; height: auto; font-size: 11px; padding: 2px 8px; }',
 ].join('\n');

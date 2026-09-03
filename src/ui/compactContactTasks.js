@@ -7,9 +7,9 @@ App.ui = App.ui || {};
 // route is typically client-side routing, no popstate/load event to hook — same tradeoff the predecessor
 // project made) and resolves what the current page corresponds to via App.mapping.pageContext: an
 // unmapped site, a broken mapping, an extracted-but-unmatched contact, or a matched Notion contact. Shows
-// either a small "map this site"/"re-map"/"create contact" banner (GOAL.md points 4-5) or — once
-// matched — that contact's incomplete tasks, minimal (complete button, task name, due date), same as the
-// predecessor's compact task list.
+// either a small Map/Remap/Create banner (GOAL.md points 4-5) or — once matched — that contact's
+// incomplete tasks, minimal (complete button, task name, due date), same as the predecessor's compact
+// task list.
 App.ui.compactContactTasks = (function () {
   var POLL_INTERVAL_MS = 800;
 
@@ -107,19 +107,19 @@ App.ui.compactContactTasks = (function () {
       banner.className = 'crmtm-cct-banner';
 
       if (localState.picking) {
-        banner.textContent = 'Click the page element for the field being mapped…';
+        banner.textContent = 'Click the field…';
         wrap.appendChild(banner);
         return;
       }
 
       if (localState.status === 'no-mapping') {
         var text = document.createElement('span');
-        text.textContent = "This site isn't mapped yet.";
+        text.textContent = 'Not mapped';
         banner.appendChild(text);
         var mapBtn = document.createElement('button');
         mapBtn.type = 'button';
         mapBtn.className = 'crmtm-btn crmtm-cct-map-btn';
-        mapBtn.textContent = 'Map this site';
+        mapBtn.textContent = 'Map';
         mapBtn.addEventListener('click', function () { startMappingFlow(null); });
         banner.appendChild(mapBtn);
         wrap.appendChild(banner);
@@ -128,12 +128,12 @@ App.ui.compactContactTasks = (function () {
 
       if (localState.status === 'broken') {
         var brokenText = document.createElement('span');
-        brokenText.textContent = 'Mapping broke for: ' + localState.brokenFields.join(', ') + '.';
+        brokenText.textContent = 'Mapping broken';
         banner.appendChild(brokenText);
         var remapBtn = document.createElement('button');
         remapBtn.type = 'button';
         remapBtn.className = 'crmtm-btn crmtm-cct-map-btn';
-        remapBtn.textContent = 'Re-map';
+        remapBtn.textContent = 'Remap';
         remapBtn.addEventListener('click', function () {
           startMappingFlow(localState.mapping ? localState.mapping.pathPattern : null);
         });
@@ -145,12 +145,12 @@ App.ui.compactContactTasks = (function () {
       if (localState.status === 'no-contact-match') {
         var noMatchText = document.createElement('span');
         var name = localState.extracted && (localState.extracted.name || localState.extracted.phone || localState.extracted.email);
-        noMatchText.textContent = 'No matching Notion contact found' + (name ? ' for ' + name : '') + '.';
+        noMatchText.textContent = (name || 'Contact') + ' not found';
         banner.appendChild(noMatchText);
         var createBtn = document.createElement('button');
         createBtn.type = 'button';
         createBtn.className = 'crmtm-btn crmtm-cct-map-btn';
-        createBtn.textContent = 'Create contact';
+        createBtn.textContent = 'Create';
         createBtn.addEventListener('click', createContactFromExtracted);
         banner.appendChild(createBtn);
         wrap.appendChild(banner);

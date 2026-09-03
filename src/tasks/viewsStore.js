@@ -11,11 +11,84 @@ App.tasks.viewsStore = (function () {
     return 'view_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
   }
 
-  // Self-seeds one default "All tasks" view on first use so the tab bar is never empty — remove()
-  // refuses to delete the last remaining view, mirroring Notion's own "at least one view" rule.
+  function cond(field, operator, value) {
+    var c = { field: field, operator: operator };
+    if (value !== undefined) c.value = value;
+    return c;
+  }
+
+  function group(op, conditions) {
+    return { op: op, conditions: conditions };
+  }
+
+  // The 4 daily-queue views below all end in the same "due today (regardless of status) OR (overdue and
+  // still not completed)" clause, reused by reference rather than duplicated 4 times.
+  var TODAY_OR_OVERDUE_INCOMPLETE = group('OR', [
+    cond('dueDate', 'is', 'today'),
+    group('AND', [cond('dueDate', 'isBefore', 'today'), cond('status', 'isNot', 'Completed')]),
+  ]);
+
+  // Ported verbatim from the owner's real GHL-tasks-userscript seeded views (src/payload/settings.js
+  // DEFAULT_VIEWS) — the actual daily-driver view set, not a placeholder. Only the completed-checkbox
+  // conditions changed shape (`completed isChecked/isUnchecked` -> `status is/isNot 'Completed'`), since
+  // Notion's native 3-valued status property replaces the predecessor's boolean checkbox.
+  var DEFAULT_VIEWS = [
+    {
+      id: 'firstReachOut',
+      name: 'First Reach-Out',
+      filter: group('AND', [
+        cond('stage', 'isNot', 'NA'),
+        cond('stage', 'isNot', 'ARCHIV'),
+        cond('day', 'equals', 1),
+        cond('call', 'equals', 1),
+        TODAY_OR_OVERDUE_INCOMPLETE,
+      ]),
+      sort: [],
+    },
+    {
+      id: 'secondPriority',
+      name: 'Second Priority',
+      filter: group('AND', [
+        cond('stage', 'isNot', 'NA'),
+        cond('stage', 'isNot', 'ARCHIV'),
+        group('OR', [cond('day', 'notEquals', 1), cond('call', 'notEquals', 1)]),
+        TODAY_OR_OVERDUE_INCOMPLETE,
+      ]),
+      sort: [],
+    },
+    {
+      id: 'na',
+      name: 'NA',
+      filter: group('AND', [cond('stage', 'is', 'NA'), TODAY_OR_OVERDUE_INCOMPLETE]),
+      sort: [],
+    },
+    {
+      id: 'archive',
+      name: 'Archive',
+      filter: group('AND', [cond('stage', 'is', 'ARCHIV'), TODAY_OR_OVERDUE_INCOMPLETE]),
+      sort: [],
+    },
+    {
+      id: 'recents',
+      name: 'Recents',
+      filter: null,
+      sort: [{ field: 'lastUpdated', direction: 'desc' }],
+    },
+    {
+      id: 'completed',
+      name: 'Completed',
+      filter: group('AND', [cond('status', 'is', 'Completed')]),
+      sort: [],
+    },
+  ];
+
+  // Self-seeds the real default view set on first use so the tab bar is never empty — remove() refuses
+  // to delete the last remaining view, mirroring Notion's own "at least one view" rule.
   function ensureSeeded(settings) {
     if (settings.views && settings.views.length) return settings;
-    settings.views = [{ id: makeId(), name: 'All tasks', filter: null, sort: [{ field: 'dueDate', direction: 'asc' }] }];
+    settings.views = DEFAULT_VIEWS.map(function (v) {
+      return Object.assign({}, v, { id: v.id });
+    });
     App.core.settings.save(settings);
     return settings;
   }

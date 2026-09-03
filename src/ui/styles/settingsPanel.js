@@ -20,7 +20,7 @@ App.ui.styles.settingsPanel = [
   '.crmtm-settings-save { width: auto; padding: 0 12px; background: var(--crmtm-accent); color: #fff; }',
   '.crmtm-settings-save:hover { background: var(--crmtm-accent); opacity: 0.9; }',
   '.crmtm-settings-status { color: var(--crmtm-success); font-size: 12px; min-height: 16px; }',
-  '.crmtm-settings-error { color: var(--crmtm-danger); font-size: 12px; }',
+  '.crmtm-settings-error { color: var(--crmtm-danger); font-size: 11px; }',
   '.crmtm-settings-updates { display: flex; flex-direction: column; gap: 6px; }',
   '.crmtm-settings-update-line { font-size: 12px; color: var(--crmtm-text-muted); }',
   '.crmtm-settings-update-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 2px; }',
