@@ -77,17 +77,11 @@ App.core.settings = (function () {
     reservedTimes: { morning: '02:10', afternoon: '02:11', evening: '02:12', allday: '02:13' },
   };
 
+  // A saved value always wins over a code-level default, full stop — no special-casing for "this looks
+  // empty/stale." The Settings panel is the source of truth once it's been saved; see its "Reset to
+  // defaults" button for the deliberate way back to these DEFAULTS instead.
   function load() {
-    var merged = Object.assign({}, DEFAULTS, App.core.storage.get(STORAGE_KEY, {}));
-    // A workflow with zero stages is never a meaningful end state for this app (every picker that reads
-    // it just goes blank) — most likely it's a stale save from before real stages existed here, not a
-    // deliberate choice. Recover automatically rather than silently staying broken across every future
-    // code update, the way a raw Object.assign would (a stored value always wins over a new DEFAULTS,
-    // even an empty one saved by accident).
-    if (!merged.workflow || !merged.workflow.stages || Object.keys(merged.workflow.stages).length === 0) {
-      merged.workflow = DEFAULTS.workflow;
-    }
-    return merged;
+    return Object.assign({}, DEFAULTS, App.core.storage.get(STORAGE_KEY, {}));
   }
 
   function isConfigured(settings) {
