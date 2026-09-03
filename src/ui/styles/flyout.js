@@ -1,0 +1,65 @@
+// requires: App.ui.styles.theme
+'use strict';
+App.ui = App.ui || {};
+App.ui.styles = App.ui.styles || {};
+// Shared chrome for every trigger-chip + dropdown-panel field in the UI (date picker, time picker,
+// and anything future) — the trigger look, the panel box, the "flip above/below" positioning, and the
+// preset-option-row look are all identical across fields, so they live here once instead of being
+// duplicated per component. Each field's own style file (src/ui/styles/datePicker.js,
+// src/ui/styles/timePicker.js) only holds CSS for content that's actually unique to it (the calendar
+// grid, the time-suggestion list).
+App.ui.styles.flyout = [
+  '.crmtm-flyout-wrap { position: relative; display: inline-block; }',
+  '',
+  '.crmtm-flyout-trigger {',
+  '  display: flex; align-items: center; gap: 4px; background: var(--crmtm-bg-hover);',
+  '  border: 1px solid var(--crmtm-border); border-radius: var(--crmtm-radius-sm); color: var(--crmtm-text);',
+  '  font-size: 12px; padding: 5px 8px; cursor: pointer; white-space: nowrap;',
+  '}',
+  '.crmtm-flyout-trigger:hover { background: var(--crmtm-bg-pressed); }',
+  '.crmtm-flyout-trigger.is-placeholder { color: var(--crmtm-text-muted); }',
+  '.crmtm-flyout-trigger.is-set {',
+  '  color: var(--crmtm-accent); border-color: var(--crmtm-accent-bg); background: var(--crmtm-accent-bg);',
+  '}',
+  // Missing-required-field highlight (owner, 2026-07-22: task cannot be added without a date/time, and
+  // whichever one is missing should highlight red) — wins over is-placeholder/is-set since a required
+  // field left empty is a real error, not just an unset-but-fine default.
+  '.crmtm-flyout-trigger.is-error {',
+  '  color: var(--crmtm-danger); border-color: var(--crmtm-danger); background: var(--crmtm-danger-bg);',
+  '}',
+  '.crmtm-flyout-trigger-icon { display: flex; flex-shrink: 0; }',
+  '.crmtm-flyout-trigger-icon svg { display: block; }',
+  '',
+  '.crmtm-flyout-panel {',
+  '  position: absolute; bottom: calc(100% + 6px); left: 0; width: 220px;',
+  '  background: var(--crmtm-bg-raised); border: 1px solid var(--crmtm-border); border-radius: var(--crmtm-radius);',
+  '  box-shadow: var(--crmtm-shadow); padding: 6px; z-index: 20;',
+  '}',
+  '.crmtm-flyout-panel[hidden] { display: none; }',
+  // Toggled in JS via App.ui.floatingPanel.pickSide() — an anchor in the top half of the viewport
+  // gets its panel opening downward instead of the default upward.
+  '.crmtm-flyout-panel.is-open-below { bottom: auto; top: calc(100% + 6px); }',
+  '',
+  '.crmtm-flyout-options {',
+  '  display: flex; flex-direction: column; gap: 1px; padding-bottom: 6px; margin-bottom: 6px;',
+  '  border-bottom: 1px solid var(--crmtm-border);',
+  '}',
+  '',
+  '.crmtm-flyout-option {',
+  '  display: flex; align-items: center; gap: 8px; background: none; border: none; width: 100%;',
+  '  padding: 6px 8px; border-radius: var(--crmtm-radius-sm); font-size: 12.5px; color: var(--crmtm-text);',
+  '  cursor: pointer; text-align: left;',
+  '}',
+  '.crmtm-flyout-option:hover { background: var(--crmtm-bg-hover); }',
+  '.crmtm-flyout-option-icon { display: flex; flex-shrink: 0; }',
+  '.crmtm-flyout-option-icon svg { display: block; }',
+  '',
+  // Explicit reset-to-placeholder action (owner, 2026-07-22: "or just empty date... when that option
+  // is selected") — a plain text row, deliberately not styled like a colored preset, since it un-sets
+  // rather than sets a value.
+  '.crmtm-flyout-clear {',
+  '  display: block; width: 100%; background: none; border: none; padding: 4px 8px;',
+  '  font-size: 11.5px; color: var(--crmtm-text-muted); cursor: pointer; text-align: left;',
+  '}',
+  '.crmtm-flyout-clear:hover { color: var(--crmtm-text); text-decoration: underline; }',
+].join('\n');

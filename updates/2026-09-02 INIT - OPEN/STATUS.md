@@ -1,12 +1,15 @@
 # INIT — Status
 
-Last updated: 2026-09-03 (owner provided real Notion credentials + both databases, already built by hand.
-Live-verified schema, added the day/call/total properties to Tasks, smoke-tested full contact-lookup +
-task-create + relation-query round trip against the real workspace, then cleaned up the test pages. Data
-model is confirmed live-working. No `App.core.notionClient` code written yet — that's next.)
+Last updated: 2026-09-03 (owner said "build it all now, all phases go until you need my intervention" —
+Steps 1-4 fully built: `App.core` (namespace/log/storage/httpClient/notionClient/settings/timezone), the
+build system, the full site-mapping engine (`src/mapping/**`), and the entire task-management UX ported
+into `src/ui/**` + `src/tasks/**`. Clean full build, `dist/script.user.js` ~315KB. Pure-logic modules and
+the live Notion client code both verified working via Node scratch scripts — see Step 5 below for what
+still needs a real browser + the owner's GHL login.)
 
-Current step: **Step 1 — Data model (Notion)**, schema confirmed live; `App.core.notionClient` build is next.
-Step 0 is done.
+Current step: **Step 5/6 — Test & wrap up.** Everything buildable without a live GHL session is done and
+verified; the remaining work is the owner testing the real flow in Tampermonkey and reporting back (see
+"Needs the owner" below), then closing this update once confirmed.
 
 ## Step 0 research summary (2026-09-03)
 
@@ -95,6 +98,54 @@ schema was live-verified and extended, not created from scratch:
 - `.env` now holds the real `NOTION_API_KEY`/`NOTION_CONTACTS_DB_ID`/`NOTION_TASKS_DB_ID` for Claude's own
   dev/test scripts, per `CLAUDE.md` §4 (gitignored, not committed). The live userscript will still get its
   own copy through its Settings panel at runtime, per the same section — `.env` is dev-only.
+
+## What got built 2026-09-03 (Steps 1-4 + partial Step 5)
+
+Full file-by-file detail is in `ROADMAP.md`'s Steps 1-4 (now checked off) — this is the summary:
+
+- **`src/core/`**: `namespace.js`, `log.js`, `storage.js` (verbatim GM_* wrappers), `httpClient.js`
+  (queue/burst-limiter/retry/hard-timeout, Notion-tuned), `notionClient.js` (data_source_id resolution +
+  caching, contact/task CRUD, compound-or lookup, `decorateTask`/`decorateContact`), `settings.js`
+  (Notion credentials, timezone, workflow config, bucket-default times), `timezone.js` (Intl wall-clock,
+  parameterized zone).
+- **`src/mapping/`**: `selectorEngine.js` (ranked candidate generation/verification/resolution),
+  `storage.js` (hostname+path-scoped mapping records), `elementPicker.js` (click-to-map capture session),
+  `contactExtractor.js`, `contactMatcher.js`, `pageContext.js` (the single entry point tying it all
+  together — `resolve(url)` → `no-mapping`/`broken`/`no-contact-match`/`matched`).
+  `src/ui/mappingPickerOverlay.js` is the picker's visual highlight/instruction chrome.
+- **`src/tasks/`**: `taskViews.js` (filter/sort/timeline engine, FIELDS table now pointing at real Notion
+  properties, `status` select field replacing the predecessor's boolean checkbox), `viewsStore.js`
+  (self-seeding "All tasks" default view), `workflowEngine.js` + `timeBuckets.js` (ported, day/call/total
+  concept kept per owner confirmation), `taskStore.js` (new — 30s polling cache over
+  `notionClient.listAllTasks()`, since Notion has no push mechanism), `contactNameCache.js`.
+- **`src/ui/`**: `shell.js` (3-density floating panel), `quickAdd.js`, `taskEditPanel.js`,
+  `followUpPrompt.js`, `taskComposer.js` (shared state→Notion-fields logic, `composeTitle` now write-only
+  cosmetic text, never parsed back), `datePicker.js`/`timePicker.js`/`typePicker.js`/`stepPicker.js`/
+  `floatingPanel.js` (all near-verbatim), `filterSortBar.js`, `indicators.js`, `fullScreen.js` (tab
+  bar/Timeline/Settings, GHL Fast-Nav and Lost n Found dropped entirely), `settingsPanel.js` (rebuilt),
+  `compactContactTasks.js` (rebuilt — now also owns the mapping-status banner: "Map this site" /
+  "Re-map" / "Create contact", polls `location.href` same as the predecessor's 800ms pattern).
+- **Build**: `src/manifest.json` + `build/lib.js` + `build/build.js` + `src/meta.js`. `npm run build`
+  (or `node build/build.js`) produces a clean `dist/script.user.js`.
+
+**Verified so far** (all via scratch Node scripts, not committed — see below):
+- Pure-logic modules (timezone round-trip, workflowEngine, timeBuckets, taskViews filter/sort incl. OR
+  groups) — all pass.
+- The actual `httpClient.js`/`notionClient.js` code, live against the real Notion workspace (GM_xmlhttpRequest
+  stubbed with Node's `https`): create/read/update/delete contact + task, compound-or lookup,
+  relation-filtered task query, `decorateTask` round-trip — all pass, then cleaned up (workspace confirmed
+  empty again).
+
+**Needs the owner** (can't be tested without a real GHL login + real browser):
+1. Install `dist/script.user.js` into Tampermonkey (see updated README "Install" section) and fill in
+   Settings (Notion API key, database IDs, timezone).
+2. On a real GHL contact page, trigger the "Map this site" flow from the compact bar and click through
+   name/phone/email — confirm the picker highlights sensibly and the mapping saves.
+3. Confirm quick-add creates a task against the right Notion contact, and that revisiting the same
+   contact (or a different GHL page) re-matches it correctly.
+4. Open the full-screen panel — confirm the default "All tasks" view, tab add/rename/delete, Timeline
+   chart, and Settings form all render and behave as expected.
+5. Report back anything broken, confusing, or missing rather than assuming it works — per `CLAUDE.md` §5.
 
 ## Open questions for the owner
 
