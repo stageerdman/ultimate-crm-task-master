@@ -13,37 +13,49 @@ change log.
 - [x] Research the Notion API directly (official docs): property types, page CRUD, query/filter, pagination,
       rate limits, CORS.
 - [x] Research element-picker selector strategies robust to CRM markup churn.
-- [ ] Ask the owner which 2-3 real CRM sites to validate mapping against — **answered: GHL only, for now.**
+- [x] Ask the owner which 2-3 real CRM sites to validate mapping against — **answered: GHL only, for now.**
       Revisit once the picker is built if more sites are needed.
 
 Full findings live in `STATUS.md` under "Step 0 research summary" (2026-09-03 entry) — this roadmap only
 states the decisions that follow from them.
 
-## Step 1 — Data model (Notion)
+## Step 1 — Data model (Notion) ✅ schema live 2026-09-03
 
-Decisions from research (see STATUS.md for full rationale/citations):
+Owner had already built both databases by hand before this step started; live-verified against the real
+workspace (see STATUS.md "Live Notion verification" entry) rather than created from scratch. Owner also
+confirmed (2026-09-03): **the day/call/total call-cadence/workflow-step concept works for any CRM, not just
+GHL** — keep it, `workflowEngine.js` ports.
 
-- [ ] **Contacts DB**: `Name` (title), `Phone` (phone_number), `Email` (email), `CRM URLs` (rich_text,
-      newline-delimited list of URLs — chosen over multi_select/relation-sub-db: flat, editable, supports
-      `contains` filtering, no 100-option cap issue).
-- [ ] **Tasks DB**: `Task` (title), `Contact` (relation → Contacts), `Due` (date — supports full ISO 8601
-      datetime, not date-only, so **no sentinel-time hack needed**: the predecessor's `timeResolution.js`
-      bucket-encoding trick existed only because GHL's Task object had exactly one real timestamp field.
-      Store a real due datetime; keep the Todoist-style bucket picker (Morning/Afternoon/Evening/All day) as
-      **input UX sugar** that fills a configurable default time per bucket, still freely editable), `Status`
-      (native `status` property with groups, e.g. To-do/In Progress/Complete — replaces GHL's ad-hoc
-      completed-flag + stage-string; **no separate checkbox**, redundant/dual-source-of-truth risk), `Notes`
-      (rich_text).
-- [ ] Decide (ask owner, see open question in STATUS.md) whether to keep a GHL-style day/call/total
-      call-cadence/workflow-step concept at all, or simplify Stage to a plain `Status`/select property with no
-      step-cadence math. `workflowEngine.js`'s flatten/scope/next/prev utilities only port if this concept is
-      kept.
-- [ ] Build `App.core.notionClient`: auth, generic `request()`, **must resolve each database's
+- [x] **People DB** (`data_source_id 3cf4c170-2623-8004-a40e-000bfef99d00`): `Name` (title), `Phone`
+      (phone_number), `Email` (email), `URL Contact` (url), `URL Opportunity` (url), `Tasks` (relation, dual
+      synced with Tasks.People). Two typed single-URL fields instead of the multi-URL rich_text field
+      originally planned — this maps directly onto GHL's own two page types (contact page vs. opportunity
+      page, the exact example in GOAL.md point 6) and the owner built it this way already. Contact lookup
+      uses a 4-leaf `or` filter (phone/email/URL Contact/URL Opportunity) instead of 3 — still one query, well
+      under the 2-level nesting cap. **Forward-looking note, not urgent**: if a second CRM with different page
+      types gets mapped later, revisit whether two fixed URL fields still fit or a more generic multi-URL
+      field is needed then — no need to solve this before it's evidence-backed (GOAL.md point 6 philosophy).
+- [x] **Tasks DB** (`data_source_id 3cf4c170-2623-806a-bb61-000bf13d51e1`): `Task` (title), `People`
+      (relation → People, dual synced), `Due Date` (date — full ISO 8601 datetime confirmed working, so **no
+      sentinel-time hack needed**: the predecessor's `timeResolution.js` bucket-encoding trick existed only
+      because GHL's Task object had exactly one real timestamp field. Store a real due datetime; keep the
+      Todoist-style bucket picker (Morning/Afternoon/Evening/All day) as **input UX sugar** that fills a
+      configurable default time per bucket, still freely editable), `Status` (native `status` property,
+      already had groups To-do/In Progress/Complete with options Planned/In progress/Completed — completion
+      tracking, separate from Stage below), `Note` (rich_text). **Added 2026-09-03** to carry the
+      day/call/total concept as real properties (replacing `titleEncoder.js`'s
+      `{STAGE}{DAY} {CALL}/{TOTAL} + {MODIFIER} | {NOTE}` string grammar 1:1): `Stage` (select, empty options
+      — populated from `settings.workflow.stages` keys as they're used, matching `titleEncoder.decode`'s
+      `stage` field), `Day` (number, optional), `Call` (number, optional), `Total` (number, optional),
+      `Modifier` (rich_text, optional — free text for now; revisit as `select` only if a small fixed set of
+      modifier values emerges in practice).
+- [x] Build `App.core.notionClient`: auth, generic `request()`, **must resolve each database's
       `data_source_id`** at settings-configure time and query against `/v1/data_sources/{id}/query` (Notion
-      API version 2025-09-03 split databases into data sources — the old `/v1/databases/{id}/query` path is
-      the pre-2025-09-03 shape). Contact CRUD + lookup: single compound `or` filter across
-      `phone_number`/`email`/`CRM URLs contains` (two-level nesting is enough, confirmed by docs). Task CRUD +
-      query/filter/sort for views, `relation.contains: <contactPageId>` + view's filter/sort.
+      API version 2025-09-03 split databases into data sources — confirmed live, hardcode the two IDs above
+      as the settings-configured defaults). Contact CRUD + lookup: single compound `or` filter across
+      `Phone`/`Email`/`URL Contact`/`URL Opportunity` — **live-tested and confirmed working**. Task CRUD +
+      query/filter/sort for views, `relation.contains: <contactPageId>` + view's filter/sort — **live-tested
+      and confirmed working**, including writing/reading Stage/Day/Call/Total/Note in one page create.
 - [ ] Pagination: cursor-based (`page_size` max 100, `start_cursor`/`next_cursor`/`has_more`) — for this
       single-user tool, lists will almost always fit one page, but implement the cursor loop for correctness.
 - [ ] Rate limiting in `App.core.httpClient`: ~3 req/s average per integration (Notion-documented) — reuse
@@ -51,8 +63,10 @@ Decisions from research (see STATUS.md for full rationale/citations):
       just with Notion's stricter numbers. **Must include a hard `timeout`/`ontimeout` on every
       `GM_xmlhttpRequest` call from day one** — the predecessor hit a real production incident where a
       timeout-less hung request wedged the entire queue forever.
-- [ ] Confirmed: `api.notion.com` sends no CORS headers for arbitrary browser origins (multiple
-      `notion-sdk-js` issue reports) — `GM_xmlhttpRequest` is required, matches the existing assumption.
+- [x] Confirmed live: `api.notion.com` sends no CORS headers for arbitrary browser origins —
+      `GM_xmlhttpRequest` is required (this was tested from a server-side dev script, not a browser, but
+      matches the documented/community-reported behavior; still worth a real in-browser smoke test once the
+      userscript skeleton exists, since GM_xmlhttpRequest is the actual runtime path).
 
 ## Step 2 — Site-mapping engine
 
@@ -102,8 +116,11 @@ OR-filter support from day one (seeded "today OR (overdue AND incomplete)" views
       unassign-then-delete workaround** (existed only because GHL's task-search index never reconciled
       deletions — a real GHL bug; Notion's API has no equivalent issue, plain archive-delete suffices).
 - [ ] Date/time pickers — port verbatim (zero GHL coupling beyond timezone, see Indicators below).
-- [ ] Type/step pickers — port combobox UX pattern; re-source stage options from Notion `Status`/select
-      property; step picker depends on the Step 1 day/call/total open question.
+- [ ] Type/step pickers — port combobox UX pattern; re-source stage options from Notion `Stage`/select
+      property (not `Status` — that's the separate To-do/In Progress/Complete completion field); step picker
+      keeps `workflowEngine.js`'s flatten/scope/next/prev logic, cycling through Day/Call/Total combos per
+      stage same as before, now reading/writing real Stage/Day/Call/Total properties instead of a decoded
+      title string.
 - [ ] Filter/sort bar + editable views (tabs) — port near-verbatim per the headline finding above. New
       project's `FIELDS` table points at real Notion task properties instead of `decoded.stage` etc.
 - [ ] Indicators (overdue/status coloring) — port pure functions verbatim; port the `timezone.js` Intl-based
