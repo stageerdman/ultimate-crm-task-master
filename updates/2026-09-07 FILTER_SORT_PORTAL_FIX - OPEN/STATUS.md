@@ -55,10 +55,24 @@ leak going forward, just far less often than before.
 - Clean build (round 1): `dist/script.user.js` (327933 bytes). Clean build (round 2 fix): `dist/script.user.js`
   (329374 bytes).
 
+## Round 3: portaled panel rendering behind the main UI (z-index)
+
+Owner reported it still "couldn't open Date," but correctly self-diagnosed the real cause: the dropdown
+*was* opening, just rendering visually behind the main shell UI. `.crmtm-flyout-panel` (shared by all four
+flyout pickers) only had `z-index: 20`. That was harmless while it was a DOM descendant of the shell's own
+`position:fixed; z-index:2147483647` container — it only had to out-rank its own siblings inside that
+already-on-top stacking context. Once portaled out to be a *sibling* of the shell (both now direct children
+of the shadow root), it competes against the shell's z-index directly and loses. Fixed by matching
+`.crmtm-flyout-panel`'s z-index to the same `2147483647` already used by the shell (`shell.js`) and by
+filterSortBar's own portaled popovers (`filterSortBar.js`) — that's the app's existing convention for
+"must render above everything," just not one this panel needed before it was portaled.
+
+- Clean build (round 3): `dist/script.user.js` (329767 bytes).
+
 ## Open questions / next step
 
 - Needs the owner to paste `dist/script.user.js` into Tampermonkey and confirm: the Date filter value
-  picker opens and works again, filters load/edit at normal speed, and the two original bugs (panel
-  closing on property pick, calendar clipped) are still fixed. No code-side open questions — but given
-  round 1 shipped a real live-breaking regression, treat this round's fix as unverified until the owner
-  confirms, not just "build succeeded."
+  picker actually opens and is visible/usable, filters load/edit at normal speed, and the two original
+  bugs (panel closing on property pick, calendar clipped) are still fixed. No code-side open questions —
+  but given rounds 1 and 2 each shipped a real live-breaking regression, treat this round's fix as
+  unverified until the owner confirms, not just "build succeeded."

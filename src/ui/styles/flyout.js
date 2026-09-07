@@ -34,10 +34,14 @@ App.ui.styles.flyout = [
   // instance is portaled out of `.crmtm-flyout-wrap` and repositioned (position: fixed) against its
   // trigger's live bounding rect via App.ui.floatingPanel.positionPortal on each open, which is what
   // actually decides above-vs-below and keeps it from being clipped by a scrollable ancestor.
+  // z-index must match the shell's own (src/ui/styles/shell.js, src/ui/styles/filterSortBar.js) —
+  // portaled out of `.crmtm-flyout-wrap`, this panel is now a *sibling* of the shell/full-screen
+  // container in the shadow root rather than its descendant, so it competes against the shell's
+  // z-index directly instead of inheriting a stacking context where any value would do.
   '.crmtm-flyout-panel {',
   '  position: fixed; width: 220px;',
   '  background: var(--crmtm-bg-raised); border: 1px solid var(--crmtm-border); border-radius: var(--crmtm-radius);',
-  '  box-shadow: var(--crmtm-shadow); padding: 6px; z-index: 20;',
+  '  box-shadow: var(--crmtm-shadow); padding: 6px; z-index: 2147483647;',
   '}',
   '.crmtm-flyout-panel[hidden] { display: none; }',
   '',
