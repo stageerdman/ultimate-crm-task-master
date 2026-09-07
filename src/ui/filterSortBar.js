@@ -1,4 +1,4 @@
-// requires: App.tasks.taskViews, App.tasks.viewsStore, App.ui.datePicker
+// requires: App.tasks.taskViews, App.tasks.viewsStore, App.ui.datePicker, App.ui.floatingPanel
 'use strict';
 App.ui = App.ui || {};
 // Notion-style Filter/Sort toolbar (docs/notion-views-plan.md Phase C — implements
@@ -124,55 +124,17 @@ App.ui.filterSortBar = (function () {
       }
     }
 
-    // --- generic outside-click/Escape-closable popover, positioned from `anchorWrap`'s live bounding
-    // rect — reused for the property picker and the condition submenu. Appended to the nearest shadow
-    // root (or document.body, outside a shadow tree) with `position: fixed` rather than nested inside
-    // `anchorWrap` with `position: absolute`: the property picker/condition submenu open from anchors
-    // that live inside .crmtm-fsb-panel, which is itself `overflow-y: auto` (it has to be, condition
-    // lists can get long) — an absolutely-positioned child that visually extends past a scrollable
-    // ancestor's bounds gets clipped by that ancestor's overflow, forcing the user to scroll the outer
-    // panel to see a dropdown that's supposed to float on top of it. `position: fixed` positioned from
-    // getBoundingClientRect() escapes that entirely, the same way a browser-native <select> dropdown
-    // would. ---
+    // Property picker + condition submenu both open through the shared App.ui.floatingPanel.openPortal
+    // (see floatingPanel.js) rather than a locally-positioned child: that's what keeps them from being
+    // clipped by .crmtm-fsb-panel's `overflow-y: auto` (needed since condition lists can get long), and
+    // what makes onDocMouseDownClosePanels below correctly recognize a click landing in one of these as
+    // "still inside the filter/sort panel" even though, post-portal, it's no longer a DOM descendant of
+    // filterWrap/sortWrap.
     function openPopover(anchorWrap, className, build) {
       closeAnyPopover();
-      var pop = el('div', className);
-      build(pop, function () { close(); });
-
-      var root = anchorWrap.getRootNode();
-      var portalHost = root && root.host ? root : document.body;
-      pop.style.position = 'fixed';
-      pop.style.margin = '0';
-      portalHost.appendChild(pop);
-
-      var rect = anchorWrap.getBoundingClientRect();
-      var popRect = pop.getBoundingClientRect();
-      var left = Math.min(rect.left, window.innerWidth - popRect.width - 8);
-      var top = rect.bottom + 4;
-      if (top + popRect.height > window.innerHeight - 8) {
-        top = Math.max(8, rect.top - popRect.height - 4);
-      }
-      pop.style.left = Math.max(8, left) + 'px';
-      pop.style.top = top + 'px';
-
-      function onDocMouseDown(e) {
-        var path = e.composedPath ? e.composedPath() : [];
-        if (path.indexOf(pop) === -1) close();
-      }
-      function onDocKeyDown(e) {
-        if (e.key === 'Escape') close();
-      }
-      function close() {
-        if (openPopoverCloser === closeThis) openPopoverCloser = null;
-        document.removeEventListener('mousedown', onDocMouseDown, true);
-        document.removeEventListener('keydown', onDocKeyDown, true);
-        if (pop.parentNode) pop.parentNode.removeChild(pop);
-      }
-      function closeThis() { close(); }
-      openPopoverCloser = closeThis;
-      document.addEventListener('mousedown', onDocMouseDown, true);
-      document.addEventListener('keydown', onDocKeyDown, true);
-      return close;
+      var portal = App.ui.floatingPanel.openPortal(anchorWrap, className, build);
+      openPopoverCloser = portal.close;
+      return portal.close;
     }
 
     // Property picker (spec §4.1) — search + list, shared by Filter's "+ Add filter" and Sort's
@@ -645,6 +607,12 @@ App.ui.filterSortBar = (function () {
     sortBtn.addEventListener('click', toggleSortPanel);
 
     function onDocMouseDownClosePanels(e) {
+      // A click inside an open portal (the property picker, the condition submenu, or a value input's
+      // own flyout like the date picker) is never "outside" the filter/sort panel it was opened from,
+      // even though composedPath() won't include filterWrap/sortWrap post-portal — see floatingPanel.js.
+      // Without this guard, picking a filter property or a condition operator force-closed the whole
+      // panel out from under the click that was supposed to just make a selection.
+      if (App.ui.floatingPanel.isEventInPortal(e)) return;
       var path = e.composedPath ? e.composedPath() : [];
       if (!filterPanel.hidden && path.indexOf(filterWrap) === -1) filterPanel.hidden = true;
       if (!sortPanel.hidden && path.indexOf(sortWrap) === -1) sortPanel.hidden = true;

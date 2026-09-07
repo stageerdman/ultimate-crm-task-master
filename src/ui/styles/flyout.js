@@ -30,15 +30,16 @@ App.ui.styles.flyout = [
   '.crmtm-flyout-trigger-icon { display: flex; flex-shrink: 0; }',
   '.crmtm-flyout-trigger-icon svg { display: block; }',
   '',
+  // position/top/left/bottom below are just a sane default before JS ever measures anything — every
+  // instance is portaled out of `.crmtm-flyout-wrap` and repositioned (position: fixed) against its
+  // trigger's live bounding rect via App.ui.floatingPanel.positionPortal on each open, which is what
+  // actually decides above-vs-below and keeps it from being clipped by a scrollable ancestor.
   '.crmtm-flyout-panel {',
-  '  position: absolute; bottom: calc(100% + 6px); left: 0; width: 220px;',
+  '  position: fixed; width: 220px;',
   '  background: var(--crmtm-bg-raised); border: 1px solid var(--crmtm-border); border-radius: var(--crmtm-radius);',
   '  box-shadow: var(--crmtm-shadow); padding: 6px; z-index: 20;',
   '}',
   '.crmtm-flyout-panel[hidden] { display: none; }',
-  // Toggled in JS via App.ui.floatingPanel.pickSide() — an anchor in the top half of the viewport
-  // gets its panel opening downward instead of the default upward.
-  '.crmtm-flyout-panel.is-open-below { bottom: auto; top: calc(100% + 6px); }',
   '',
   '.crmtm-flyout-options {',
   '  display: flex; flex-direction: column; gap: 1px; padding-bottom: 6px; margin-bottom: 6px;',

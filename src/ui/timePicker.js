@@ -172,7 +172,11 @@ App.ui.timePicker = (function () {
     suggestionsEl.className = 'crmtm-tp-suggestions';
     panel.appendChild(suggestionsEl);
 
-    wrap.appendChild(panel);
+    // Portaled straight into document.body (or the nearest shadow root) instead of `wrap`, and
+    // positioned via App.ui.floatingPanel.positionPortal on every open — see floatingPanel.js. Otherwise
+    // this panel is `position: absolute` inside `wrap`, and gets visually clipped whenever `wrap` sits
+    // inside a scrollable ancestor.
+    App.ui.floatingPanel.portalHost(wrap).appendChild(panel);
     container.appendChild(wrap);
 
     function currentCustomTime() {
@@ -221,7 +225,7 @@ App.ui.timePicker = (function () {
 
     function onDocMouseDown(e) {
       var path = e.composedPath ? e.composedPath() : [];
-      if (path.indexOf(wrap) === -1) close();
+      if (path.indexOf(wrap) === -1 && path.indexOf(panel) === -1) close();
     }
 
     function onDocKeyDown(e) {
@@ -230,9 +234,10 @@ App.ui.timePicker = (function () {
 
     function open() {
       panel.hidden = false;
-      panel.classList.toggle('is-open-below', App.ui.floatingPanel.pickSide(trigger) === 'below');
       input.value = currentCustomTime();
       renderSuggestions(input.value);
+      App.ui.floatingPanel.positionPortal(panel, trigger);
+      App.ui.floatingPanel.registerPortal(panel);
       document.addEventListener('mousedown', onDocMouseDown, true);
       document.addEventListener('keydown', onDocKeyDown, true);
     }
@@ -240,6 +245,7 @@ App.ui.timePicker = (function () {
     function close() {
       if (panel.hidden) return;
       panel.hidden = true;
+      App.ui.floatingPanel.unregisterPortal(panel);
       document.removeEventListener('mousedown', onDocMouseDown, true);
       document.removeEventListener('keydown', onDocKeyDown, true);
     }
@@ -294,6 +300,7 @@ App.ui.timePicker = (function () {
 
     function destroy() {
       close();
+      if (panel.parentNode) panel.parentNode.removeChild(panel);
     }
 
     refresh();

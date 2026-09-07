@@ -245,7 +245,12 @@ App.ui.datePicker = (function () {
     calendarEl.className = 'crmtm-dp-calendar';
     panel.appendChild(calendarEl);
 
-    wrap.appendChild(panel);
+    // Portaled straight into document.body (or the nearest shadow root) instead of `wrap`, and
+    // positioned via App.ui.floatingPanel.positionPortal on every open — see floatingPanel.js. Otherwise
+    // this panel is `position: absolute` inside `wrap`, and gets visually clipped whenever `wrap` sits
+    // inside a scrollable ancestor (e.g. filterSortBar's condition value input, inside the filter panel's
+    // `overflow-y: auto`), forcing a scroll to see a calendar that's supposed to float on top of it.
+    App.ui.floatingPanel.portalHost(wrap).appendChild(panel);
     container.appendChild(wrap);
 
     var monthCursor = null;
@@ -317,7 +322,7 @@ App.ui.datePicker = (function () {
 
     function onDocMouseDown(e) {
       var path = e.composedPath ? e.composedPath() : [];
-      if (path.indexOf(wrap) === -1) close();
+      if (path.indexOf(wrap) === -1 && path.indexOf(panel) === -1) close();
     }
 
     function onDocKeyDown(e) {
@@ -326,8 +331,9 @@ App.ui.datePicker = (function () {
 
     function open() {
       panel.hidden = false;
-      panel.classList.toggle('is-open-below', App.ui.floatingPanel.pickSide(trigger) === 'below');
       resetCalendar();
+      App.ui.floatingPanel.positionPortal(panel, trigger);
+      App.ui.floatingPanel.registerPortal(panel);
       document.addEventListener('mousedown', onDocMouseDown, true);
       document.addEventListener('keydown', onDocKeyDown, true);
     }
@@ -335,6 +341,7 @@ App.ui.datePicker = (function () {
     function close() {
       if (panel.hidden) return;
       panel.hidden = true;
+      App.ui.floatingPanel.unregisterPortal(panel);
       document.removeEventListener('mousedown', onDocMouseDown, true);
       document.removeEventListener('keydown', onDocKeyDown, true);
     }
@@ -374,6 +381,7 @@ App.ui.datePicker = (function () {
 
     function destroy() {
       close();
+      if (panel.parentNode) panel.parentNode.removeChild(panel);
     }
 
     refresh();

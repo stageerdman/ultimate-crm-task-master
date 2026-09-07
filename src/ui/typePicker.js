@@ -3,10 +3,10 @@
 App.ui = App.ui || {};
 // A Todoist/combobox-style "whisperer" for the stage/type field: the visible element is always a
 // plain text input (never a click-to-open trigger button, since typing is the primary way in), but
-// focusing or typing it opens a floating list of matching stage codes underneath — same flip-above/
-// below rule as App.ui.datePicker / App.ui.timePicker (App.ui.floatingPanel.pickSide), same panel
-// chrome (App.ui.styles.flyout). The user can either click a filtered suggestion, or just type the
-// full code and press Enter/blur — both paths commit through the same case-insensitive match against
+// focusing or typing it opens a floating list of matching stage codes underneath — portaled and
+// positioned the same way as App.ui.datePicker / App.ui.timePicker (App.ui.floatingPanel.positionPortal),
+// same panel chrome (App.ui.styles.flyout). The user can either click a filtered suggestion, or just type
+// the full code and press Enter/blur — both paths commit through the same case-insensitive match against
 // the current settings.workflow.stages keys. An unmatched typed value is never silently accepted: the
 // field reverts to the last real stage and the caller is told via onInvalid so it can surface an
 // error, exactly like the old native-datalist field did.
@@ -50,7 +50,11 @@ App.ui.typePicker = (function () {
     suggestionsEl.className = 'crmtm-typ-suggestions';
     panel.appendChild(suggestionsEl);
 
-    wrap.appendChild(panel);
+    // Portaled straight into document.body (or the nearest shadow root) instead of `wrap`, and
+    // positioned via App.ui.floatingPanel.positionPortal on every open — see floatingPanel.js. Otherwise
+    // this panel is `position: absolute` inside `wrap`, and gets visually clipped whenever `wrap` sits
+    // inside a scrollable ancestor.
+    App.ui.floatingPanel.portalHost(wrap).appendChild(panel);
     container.appendChild(wrap);
 
     function currentStage() {
@@ -104,7 +108,7 @@ App.ui.typePicker = (function () {
 
     function onDocMouseDown(e) {
       var path = e.composedPath ? e.composedPath() : [];
-      if (path.indexOf(wrap) === -1) close();
+      if (path.indexOf(wrap) === -1 && path.indexOf(panel) === -1) close();
     }
 
     function onDocKeyDown(e) {
@@ -113,11 +117,12 @@ App.ui.typePicker = (function () {
 
     function open() {
       panel.hidden = false;
-      panel.classList.toggle('is-open-below', App.ui.floatingPanel.pickSide(input) === 'below');
       // Show the full list on open rather than filtering by whatever value is already sitting in the
       // field (the current stage) — narrowing only starts once the user actually types, same as the
       // suggestion list staying unfiltered until you overwrite the field.
       renderSuggestions('');
+      App.ui.floatingPanel.positionPortal(panel, input);
+      App.ui.floatingPanel.registerPortal(panel);
       document.addEventListener('mousedown', onDocMouseDown, true);
       document.addEventListener('keydown', onDocKeyDown, true);
     }
@@ -125,6 +130,7 @@ App.ui.typePicker = (function () {
     function close() {
       if (panel.hidden) return;
       panel.hidden = true;
+      App.ui.floatingPanel.unregisterPortal(panel);
       document.removeEventListener('mousedown', onDocMouseDown, true);
       document.removeEventListener('keydown', onDocKeyDown, true);
     }
@@ -155,6 +161,7 @@ App.ui.typePicker = (function () {
 
     function destroy() {
       close();
+      if (panel.parentNode) panel.parentNode.removeChild(panel);
     }
 
     refresh();
