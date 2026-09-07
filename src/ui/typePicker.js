@@ -50,11 +50,12 @@ App.ui.typePicker = (function () {
     suggestionsEl.className = 'crmtm-typ-suggestions';
     panel.appendChild(suggestionsEl);
 
-    // Portaled straight into document.body (or the nearest shadow root) instead of `wrap`, and
-    // positioned via App.ui.floatingPanel.positionPortal on every open — see floatingPanel.js. Otherwise
-    // this panel is `position: absolute` inside `wrap`, and gets visually clipped whenever `wrap` sits
-    // inside a scrollable ancestor.
-    App.ui.floatingPanel.portalHost(wrap).appendChild(panel);
+    // `panel` is deliberately left detached here rather than appended into `wrap` or a portal host
+    // immediately — `create()` can run while `wrap`/`container` are still part of an off-document
+    // fragment being assembled, and `App.ui.floatingPanel.portalHost` resolves the *current* shadow root
+    // via getRootNode(), which only reflects reality once `wrap` is actually attached. It's portaled into
+    // the real host lazily on first `open()` instead, by which point a user has already clicked
+    // something live on the page, so the DOM is guaranteed attached.
     container.appendChild(wrap);
 
     function currentStage() {
@@ -116,6 +117,7 @@ App.ui.typePicker = (function () {
     }
 
     function open() {
+      App.ui.floatingPanel.portalHost(wrap).appendChild(panel);
       panel.hidden = false;
       // Show the full list on open rather than filtering by whatever value is already sitting in the
       // field (the current stage) — narrowing only starts once the user actually types, same as the

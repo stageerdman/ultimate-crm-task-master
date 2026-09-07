@@ -213,6 +213,14 @@ App.ui.filterSortBar = (function () {
 
     // --- Value input, one per type (spec §4.4, extended to number/select/checkbox) ---
     function buildValueInput(wrap, condition, onCommit) {
+      // App.ui.datePicker portals its dropdown outside `wrap` once opened (see datePicker.js), so simply
+      // clearing `wrap.innerHTML` on a rebuild — every renderGroup() pass rebuilds every row from
+      // scratch — would leave a previously-opened calendar (and its document mousedown/keydown
+      // listeners) orphaned in the real page's DOM forever instead of being torn down along with it.
+      if (wrap._crmtmDatePicker) {
+        wrap._crmtmDatePicker.destroy();
+        wrap._crmtmDatePicker = null;
+      }
       wrap.innerHTML = '';
       if (App.tasks.taskViews.VALUELESS_OPERATORS[condition.operator]) return;
       var field = App.tasks.taskViews.FIELDS[condition.field];
@@ -279,6 +287,7 @@ App.ui.filterSortBar = (function () {
             dp.refresh();
           },
         });
+        wrap._crmtmDatePicker = dp;
       }
     }
 

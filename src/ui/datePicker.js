@@ -245,12 +245,13 @@ App.ui.datePicker = (function () {
     calendarEl.className = 'crmtm-dp-calendar';
     panel.appendChild(calendarEl);
 
-    // Portaled straight into document.body (or the nearest shadow root) instead of `wrap`, and
-    // positioned via App.ui.floatingPanel.positionPortal on every open — see floatingPanel.js. Otherwise
-    // this panel is `position: absolute` inside `wrap`, and gets visually clipped whenever `wrap` sits
-    // inside a scrollable ancestor (e.g. filterSortBar's condition value input, inside the filter panel's
-    // `overflow-y: auto`), forcing a scroll to see a calendar that's supposed to float on top of it.
-    App.ui.floatingPanel.portalHost(wrap).appendChild(panel);
+    // `panel` is deliberately left detached here rather than appended into `wrap` or a portal host
+    // immediately — `create()` can run while `wrap`/`container` are still part of an off-document
+    // fragment being assembled (e.g. filterSortBar builds a condition row before appending it to the
+    // live filter panel), and `App.ui.floatingPanel.portalHost` resolves the *current* shadow root via
+    // getRootNode(), which only reflects reality once `wrap` is actually attached. It's portaled into
+    // the real host lazily on first `open()` instead, by which point a user has already clicked
+    // something live on the page, so the DOM is guaranteed attached.
     container.appendChild(wrap);
 
     var monthCursor = null;
@@ -330,6 +331,7 @@ App.ui.datePicker = (function () {
     }
 
     function open() {
+      App.ui.floatingPanel.portalHost(wrap).appendChild(panel);
       panel.hidden = false;
       resetCalendar();
       App.ui.floatingPanel.positionPortal(panel, trigger);
