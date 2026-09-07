@@ -14,9 +14,16 @@
 - [x] `styles/flyout.js`: dropped the dead `is-open-below` CSS toggle (JS now sets position/top/left/
       bottom directly on every open); `.crmtm-flyout-panel` defaults to `position: fixed`.
 - [x] Clean build (`node build/build.js`).
-- [ ] Owner: test live in Tampermonkey — (a) open Filter, click "+ Add filter", pick a property, confirm
-      the Filter panel stays open; same for picking a condition operator. (b) Add a Date-type filter
-      condition, open its date value picker, confirm the calendar isn't clipped/doesn't require scrolling
-      the filter panel to see it. (c) Spot-check date/time/type/step pickers elsewhere (quick-add, task
-      edit panel) still open/close/position correctly now that they portal.
-- [ ] Close this update once the owner confirms live.
+- [x] `datePicker.js`/`timePicker.js`/`typePicker.js`/`stepPicker.js`: fixed a live-breaking regression —
+      the portal attach was happening at `create()` time, before the trigger was guaranteed attached to
+      the document, so `portalHost` mis-resolved to `document.body` of the host page instead of the app's
+      shadow root (unstyled Date picker + growing DOM leak on the real CRM page). Moved the attach to the
+      first `open()` call. Also added `wrap._crmtmDatePicker` destroy-on-rebuild cleanup in
+      `filterSortBar.js`'s `buildValueInput`.
+- [x] `styles/flyout.js`: fixed a second live-breaking regression — `.crmtm-flyout-panel` still had
+      `z-index: 20`, fine as a descendant of the shell's stacking context but losing once portaled out as
+      a sibling of it, rendering the dropdown behind the main UI. Matched it to the shell's own
+      `z-index: 2147483647`.
+- [x] Owner confirmed live: Date filter value picker opens, is visible, and works; filter panel stays open
+      when picking a property/operator; filters load/edit at normal speed again.
+- [x] Close this update.

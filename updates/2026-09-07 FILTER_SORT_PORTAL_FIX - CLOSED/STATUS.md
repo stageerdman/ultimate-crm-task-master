@@ -1,6 +1,6 @@
-# Status
+# Status — CLOSED, owner confirmed live 2026-09-07
 
-**Last updated:** 2026-09-07 (round 2)
+**Last updated:** 2026-09-07 (round 3, closed)
 
 Round 1 (portaling) shipped, but the owner reported it live-broke the filters entirely: the Date value
 picker wouldn't open at all, and loading/editing filters got very slow. Root cause + fix below. Build is
@@ -69,10 +69,14 @@ filterSortBar's own portaled popovers (`filterSortBar.js`) — that's the app's 
 
 - Clean build (round 3): `dist/script.user.js` (329767 bytes).
 
-## Open questions / next step
+## Confirmed live
 
-- Needs the owner to paste `dist/script.user.js` into Tampermonkey and confirm: the Date filter value
-  picker actually opens and is visible/usable, filters load/edit at normal speed, and the two original
-  bugs (panel closing on property pick, calendar clipped) are still fixed. No code-side open questions —
-  but given rounds 1 and 2 each shipped a real live-breaking regression, treat this round's fix as
-  unverified until the owner confirms, not just "build succeeded."
+Owner: "okay now it works." Date filter value picker opens, is visible, and works; Filter panel no longer
+closes on picking a property/operator; filters load/edit at normal speed. Update closed.
+
+**Lesson for future updates**: this took three rounds because portaling an element out of its normal DOM
+position (to escape a scrollable ancestor) silently strips away two things that ancestor was providing for
+free — correct root/shadow-root attachment (only resolvable once the element is *actually* attached to the
+live document, not at construction time) and a working stacking context (the portaled element now competes
+against top-level UI directly and needs a matching z-index, not just any value). Any future portal-style
+fix in this codebase should check both up front, not just clipping.
