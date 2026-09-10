@@ -153,6 +153,14 @@ App.ui.compactContactTasks = (function () {
         createBtn.textContent = 'Create';
         createBtn.addEventListener('click', createContactFromExtracted);
         banner.appendChild(createBtn);
+        var noMatchRemapBtn = document.createElement('button');
+        noMatchRemapBtn.type = 'button';
+        noMatchRemapBtn.className = 'crmtm-btn crmtm-cct-map-btn';
+        noMatchRemapBtn.textContent = 'Remap';
+        noMatchRemapBtn.addEventListener('click', function () {
+          startMappingFlow(localState.mapping ? localState.mapping.pathPattern : null);
+        });
+        banner.appendChild(noMatchRemapBtn);
         wrap.appendChild(banner);
         return;
       }

@@ -1,17 +1,37 @@
 // requires: App.core.notionClient
 'use strict';
 App.mapping = App.mapping || {};
-// Extracted page fields -> Notion contact. Phone/email exact match first, current page URL as a
-// secondary/confirmation signal — all three folded into the single compound-or query
-// App.core.notionClient.findContact already builds (ROADMAP.md Step 1/2).
+// Extracted page fields -> Notion contact. Tried in strict priority order — phone first, then email,
+// then the current page URL as a last-resort signal — rather than one compound-or query, since phone and
+// email can each independently belong to a different contact and an arbitrary OR-match pick was matching
+// the wrong person.
 App.mapping.contactMatcher = (function () {
+  function firstOrNull(results) {
+    return results && results.length ? results[0] : null;
+  }
+
+  function findByPhone(phone) {
+    if (!phone) return Promise.resolve(null);
+    return App.core.notionClient.findContact({ phone: phone }).then(firstOrNull);
+  }
+
+  function findByEmail(email) {
+    if (!email) return Promise.resolve(null);
+    return App.core.notionClient.findContact({ email: email }).then(firstOrNull);
+  }
+
+  function findByUrl(url) {
+    if (!url) return Promise.resolve(null);
+    return App.core.notionClient.findContact({ url: url }).then(firstOrNull);
+  }
+
   function findMatch(extracted, url) {
-    return App.core.notionClient.findContact({
-      phone: extracted.phone,
-      email: extracted.email,
-      url: url,
-    }).then(function (results) {
-      return results && results.length ? results[0] : null;
+    return findByPhone(extracted.phone).then(function (contact) {
+      if (contact) return contact;
+      return findByEmail(extracted.email);
+    }).then(function (contact) {
+      if (contact) return contact;
+      return findByUrl(url);
     });
   }
 

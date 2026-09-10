@@ -11,6 +11,11 @@ App.tasks.taskStore = (function () {
   var subscribers = [];
   var status = { lastPolledAt: null, lastError: null };
   var pollTimer = null;
+  // Last confirmed snapshot from the most recent successful refresh — kept around so a module that
+  // mounts (and subscribes) after the first poll already resolved still sees existing tasks right away,
+  // instead of showing nothing until the next 30s tick. Density switches (dot -> compact/full-screen) and
+  // full-screen's own mount both subscribe well after shell.js's initial startPolling() call fires.
+  var lastTasks = null;
 
   function notify(tasks) {
     subscribers.forEach(function (cb) {
@@ -24,6 +29,7 @@ App.tasks.taskStore = (function () {
         var tasks = pages.map(App.core.notionClient.decorateTask);
         status.lastPolledAt = Date.now();
         status.lastError = null;
+        lastTasks = tasks;
         notify(tasks);
         return tasks;
       },
@@ -37,6 +43,7 @@ App.tasks.taskStore = (function () {
 
   function subscribe(callback) {
     subscribers.push(callback);
+    if (lastTasks) callback(lastTasks);
     return function unsubscribe() {
       subscribers = subscribers.filter(function (cb) {
         return cb !== callback;
