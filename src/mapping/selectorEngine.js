@@ -237,10 +237,34 @@ App.mapping.selectorEngine = (function () {
     return null;
   }
 
+  // Debug-only variant of resolveMapping: instead of stopping at the first winning candidate, runs every
+  // candidate and reports what happened to each one (resolved? shape check passed? live text?) so the
+  // owner-facing details panel can show exactly why a field did or didn't extract, not just the end
+  // result.
+  function diagnoseMapping(mapping) {
+    var shapeCheck = SHAPE_CHECKS[mapping.fieldType] || function () {
+      return true;
+    };
+    return mapping.candidates.map(function (candidate) {
+      var el = resolveCandidate(candidate);
+      var text = el ? extractText(el) : null;
+      return {
+        tier: candidate.tier,
+        type: candidate.type,
+        selector: candidate.selector || null,
+        labelText: candidate.labelText || null,
+        resolved: !!el,
+        text: text,
+        shapeOk: el ? shapeCheck(text) : false,
+      };
+    });
+  }
+
   return {
     generateCandidates: generateCandidates,
     buildVerifiedMapping: buildVerifiedMapping,
     resolveMapping: resolveMapping,
     resolveCandidate: resolveCandidate,
+    diagnoseMapping: diagnoseMapping,
   };
 })();

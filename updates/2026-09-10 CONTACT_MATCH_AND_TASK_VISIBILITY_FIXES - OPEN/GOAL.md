@@ -13,6 +13,14 @@ Three owner-reported issues fixed in one pass:
    compound-OR query across phone/email/URL and taking `results[0]` — an arbitrary pick when phone and
    email belong to different contacts, not a real priority order.
 
+4. **Debug details disclosure.** A small expand/collapse arrow on the "Mapping broken" and "not found"
+   banners, showing what the script is actually seeing — extracted field values, per-selector-candidate
+   resolution diagnostics (broken banner), and live Notion phone/email query results with a manual "Use
+   this" link-instead-of-create action (not-found banner) — so the owner can self-diagnose without asking
+   Claude to dig through code every time a match doesn't behave as expected.
+
 ## Why
 
-Owner hit all three directly while using the script against a live CRM + Notion workspace.
+Owner hit all three directly while using the script against a live CRM + Notion workspace. Item 4 was
+requested after item 1 shipped, once it became clear "not found" could mean either a genuinely new contact
+or a matching/formatting mismatch the owner had no visibility into.

@@ -1,5 +1,6 @@
 // requires: App.core.log, App.core.notionClient, App.tasks.taskStore, App.ui.indicators,
-// App.mapping.pageContext, App.mapping.elementPicker, App.mapping.storage, App.mapping.contactMatcher
+// App.mapping.pageContext, App.mapping.elementPicker, App.mapping.storage, App.mapping.contactMatcher,
+// App.mapping.contactExtractor
 'use strict';
 App.ui = App.ui || {};
 // Mounted by src/ui/shell.js's renderCompact() directly inside the same compact-bar element the drag
@@ -12,6 +13,9 @@ App.ui = App.ui || {};
 // task list.
 App.ui.compactContactTasks = (function () {
   var POLL_INTERVAL_MS = 800;
+  var ICON_CHEVRON =
+    '<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.4" ' +
+    'stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
 
   function mount(container) {
     var wrap = document.createElement('div');
@@ -29,6 +33,13 @@ App.ui.compactContactTasks = (function () {
       pendingIds: {},
       lastError: null,
       picking: false,
+      // Details disclosure (owner: "little arrow I click to expand and collapse details when new contact
+      // is offered to be added or when I map something") — detailsOpen holds the status key ('broken' or
+      // 'no-contact-match') the panel is currently open for, null when collapsed. debugCandidates is a
+      // lazily-fetched cache of Notion phone/email lookups for the no-contact-match panel's "what options
+      // does it have in the database" view; both reset on every page/contact change (resolvePageContext).
+      detailsOpen: null,
+      debugCandidates: null,
     };
 
     function visibleTasks() {
@@ -102,6 +113,169 @@ App.ui.compactContactTasks = (function () {
       });
     }
 
+    // Lazily fetches Notion's exact-match results for the extracted phone/email, one query per field
+    // (same shape as App.mapping.contactMatcher's real lookups) — only runs once per page resolution,
+    // triggered the first time the details panel is opened, not on every render.
+    function ensureDebugCandidates() {
+      if (localState.debugCandidates) return;
+      localState.debugCandidates = { loading: true, phone: [], email: [], error: null };
+      var phone = localState.extracted && localState.extracted.phone;
+      var email = localState.extracted && localState.extracted.email;
+      Promise.all([
+        phone ? App.core.notionClient.findContact({ phone: phone }) : Promise.resolve([]),
+        email ? App.core.notionClient.findContact({ email: email }) : Promise.resolve([]),
+      ]).then(
+        function (results) {
+          localState.debugCandidates = {
+            loading: false,
+            phone: results[0].map(App.core.notionClient.decorateContact),
+            email: results[1].map(App.core.notionClient.decorateContact),
+            error: null,
+          };
+          render();
+        },
+        function (error) {
+          localState.debugCandidates = { loading: false, phone: [], email: [], error: error.message };
+          render();
+        }
+      );
+    }
+
+    // Links this page's URL onto an existing Notion contact the owner picked from the debug panel's
+    // candidate list, instead of creating a duplicate — same "URL Contact" slot createContactFromExtracted
+    // uses, so this page resolves to that contact on the next poll.
+    function useExistingContact(contact) {
+      App.core.notionClient.updateContact(contact.id, { urlContact: localState.url }).then(function () {
+        resolvePageContext();
+      });
+    }
+
+    function appendDetailsToggle(banner, key, onOpen) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      var open = localState.detailsOpen === key;
+      btn.className = 'crmtm-cct-details-toggle' + (open ? ' crmtm-cct-details-toggle-open' : '');
+      btn.title = open ? 'Hide details' : 'Show details';
+      btn.innerHTML = ICON_CHEVRON;
+      btn.addEventListener('click', function () {
+        var opening = localState.detailsOpen !== key;
+        localState.detailsOpen = opening ? key : null;
+        if (opening && onOpen) onOpen();
+        render();
+      });
+      banner.appendChild(btn);
+    }
+
+    function addDetailRow(panel, label, value) {
+      var row = document.createElement('div');
+      row.className = 'crmtm-cct-details-row';
+      var labelEl = document.createElement('span');
+      labelEl.className = 'crmtm-cct-details-label';
+      labelEl.textContent = label + ':';
+      row.appendChild(labelEl);
+      var valueEl = document.createElement('span');
+      valueEl.className = 'crmtm-cct-details-value';
+      valueEl.textContent = value || '—';
+      row.appendChild(valueEl);
+      panel.appendChild(row);
+    }
+
+    function addDetailsHeading(panel, text) {
+      var heading = document.createElement('div');
+      heading.className = 'crmtm-cct-details-heading';
+      heading.textContent = text;
+      panel.appendChild(heading);
+    }
+
+    function addDetailsEmpty(panel, text) {
+      var empty = document.createElement('div');
+      empty.className = 'crmtm-cct-details-empty';
+      empty.textContent = text;
+      panel.appendChild(empty);
+    }
+
+    function renderCandidateGroup(panel, label, contacts) {
+      addDetailsHeading(panel, label + ' (' + contacts.length + ')');
+      if (!contacts.length) {
+        addDetailsEmpty(panel, 'no exact match');
+        return;
+      }
+      contacts.forEach(function (contact) {
+        var row = document.createElement('div');
+        row.className = 'crmtm-cct-candidate';
+        var info = document.createElement('span');
+        info.className = 'crmtm-cct-candidate-info';
+        info.textContent = (contact.name || '(no name)') + ' — ' + (contact.phone || '—') + ' / ' + (contact.email || '—');
+        row.appendChild(info);
+        var useBtn = document.createElement('button');
+        useBtn.type = 'button';
+        useBtn.className = 'crmtm-btn crmtm-cct-candidate-use';
+        useBtn.textContent = 'Use this';
+        useBtn.title = 'Link this page to this existing contact instead of creating a new one';
+        useBtn.addEventListener('click', function () { useExistingContact(contact); });
+        row.appendChild(useBtn);
+        panel.appendChild(row);
+      });
+    }
+
+    // What the mapped selectors are actually seeing on the live page right now, candidate-by-candidate —
+    // shown when a mapping resolved to nothing at all (status 'broken') so the owner can see which tier
+    // failed and why (didn't resolve vs. resolved but rejected by the shape check).
+    function buildBrokenDetails(panel) {
+      var mapping = localState.mapping;
+      addDetailRow(panel, 'Hostname', mapping ? mapping.hostname : (localState.url ? new URL(localState.url).hostname : ''));
+      addDetailRow(panel, 'Page scope', mapping && mapping.pathPattern ? mapping.pathPattern : '(domain-wide)');
+      if (!mapping) return;
+      var diagnostics = App.mapping.contactExtractor.diagnose(mapping);
+      ['name', 'phone', 'email'].forEach(function (fieldType) {
+        var rows = diagnostics[fieldType];
+        addDetailsHeading(panel, fieldType);
+        if (!rows) {
+          addDetailsEmpty(panel, 'not mapped');
+          return;
+        }
+        rows.forEach(function (r) {
+          var line = document.createElement('div');
+          var ok = r.resolved && r.shapeOk;
+          line.className = 'crmtm-cct-details-candidate' + (ok ? ' crmtm-cct-details-candidate-ok' : '');
+          var desc = r.type === 'css' ? r.selector : 'label "' + r.labelText + '"';
+          var statusText = !r.resolved ? 'no match' : (!r.shapeOk ? 'resolved but rejected: "' + r.text + '"' : '"' + r.text + '"');
+          line.textContent = 'tier ' + r.tier + ' — ' + desc + ' → ' + statusText;
+          panel.appendChild(line);
+        });
+      });
+    }
+
+    // Extracted values plus, once fetched, exactly what Notion returned for a phone-only and email-only
+    // lookup — the "what values it's seeing" / "what options does it have in the database" debug view for
+    // the offer-to-create-contact banner.
+    function buildNoMatchDetails(panel) {
+      addDetailRow(panel, 'Name', localState.extracted && localState.extracted.name);
+      addDetailRow(panel, 'Phone', localState.extracted && localState.extracted.phone);
+      addDetailRow(panel, 'Email', localState.extracted && localState.extracted.email);
+
+      addDetailsHeading(panel, 'Database options');
+      var debug = localState.debugCandidates;
+      if (!debug || debug.loading) {
+        addDetailsEmpty(panel, 'Searching…');
+        return;
+      }
+      if (debug.error) {
+        addDetailsEmpty(panel, 'Search failed — ' + debug.error);
+        return;
+      }
+      renderCandidateGroup(panel, 'Phone match', debug.phone);
+      renderCandidateGroup(panel, 'Email match', debug.email);
+    }
+
+    function renderDetailsPanel(key, buildFn) {
+      if (localState.detailsOpen !== key) return;
+      var panel = document.createElement('div');
+      panel.className = 'crmtm-cct-details-panel';
+      buildFn(panel);
+      wrap.appendChild(panel);
+    }
+
     function renderBanner() {
       var banner = document.createElement('div');
       banner.className = 'crmtm-cct-banner';
@@ -138,7 +312,9 @@ App.ui.compactContactTasks = (function () {
           startMappingFlow(localState.mapping ? localState.mapping.pathPattern : null);
         });
         banner.appendChild(remapBtn);
+        appendDetailsToggle(banner, 'broken');
         wrap.appendChild(banner);
+        renderDetailsPanel('broken', buildBrokenDetails);
         return;
       }
 
@@ -161,7 +337,9 @@ App.ui.compactContactTasks = (function () {
           startMappingFlow(localState.mapping ? localState.mapping.pathPattern : null);
         });
         banner.appendChild(noMatchRemapBtn);
+        appendDetailsToggle(banner, 'no-contact-match', ensureDebugCandidates);
         wrap.appendChild(banner);
+        renderDetailsPanel('no-contact-match', buildNoMatchDetails);
         return;
       }
     }
@@ -221,6 +399,10 @@ App.ui.compactContactTasks = (function () {
 
     function resolvePageContext() {
       localState.url = location.href;
+      // A fresh page/contact invalidates any open debug panel and its cached candidates — otherwise stale
+      // "database options" from the previous contact would linger under the new one.
+      localState.detailsOpen = null;
+      localState.debugCandidates = null;
       App.mapping.pageContext.resolve(localState.url).then(function (result) {
         if (localState.url !== location.href) return; // navigated again while this was in flight
         localState.status = result.status;

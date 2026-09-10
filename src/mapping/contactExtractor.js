@@ -27,5 +27,17 @@ App.mapping.contactExtractor = (function () {
     return { values: values, degraded: degraded, broken: broken };
   }
 
-  return { extract: extract };
+  // Debug-only: per-field candidate-by-candidate diagnostics for the details disclosure in
+  // App.ui.compactContactTasks, not used by the normal resolve path (extract() above).
+  function diagnose(mappingRecord) {
+    var result = {};
+    ['name', 'phone', 'email'].forEach(function (fieldType) {
+      var fieldMapping = mappingRecord.fields[fieldType];
+      if (!fieldMapping) return;
+      result[fieldType] = App.mapping.selectorEngine.diagnoseMapping(fieldMapping);
+    });
+    return result;
+  }
+
+  return { extract: extract, diagnose: diagnose };
 })();
